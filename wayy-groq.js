@@ -135,7 +135,13 @@
     }
 
     async function executeBypass() {
-        const btn = document.getElementById('ai-solver-button');
+        let btn = document.getElementById('ai-solver-button');
+        if (!btn) {
+            createUI();
+            btn = document.getElementById('ai-solver-button');
+        }
+        if (!btn || btn.disabled) return;
+
         btn.innerText = "THINKING...";
         btn.disabled = true;
 
@@ -181,11 +187,68 @@
         }
     }
 
+    function getPanel() {
+        return document.getElementById(CONFIG.PANEL_ID);
+    }
+
+    function setPanelVisible(isVisible) {
+        const panel = getPanel();
+        if (!panel) {
+            if (isVisible) createUI();
+            return;
+        }
+
+        panel.dataset.visible = isVisible ? 'true' : 'false';
+        panel.style.display = 'block';
+        panel.style.opacity = isVisible ? '1' : '0';
+        panel.style.transform = isVisible ? 'translateY(0)' : 'translateY(20px)';
+        panel.style.pointerEvents = isVisible ? 'auto' : 'none';
+
+        if (!isVisible) {
+            setTimeout(() => {
+                if (panel.dataset.visible === 'false') {
+                    panel.style.display = 'none';
+                }
+            }, 300);
+        }
+    }
+
+    function toggleUI() {
+        const panel = getPanel();
+        if (!panel) {
+            createUI();
+            return;
+        }
+
+        setPanelVisible(panel.dataset.visible === 'false' || panel.style.display === 'none');
+    }
+
+    function setupShortcuts() {
+        if (window.__mdwGroqShortcutsReady) return;
+        window.__mdwGroqShortcutsReady = true;
+
+        document.addEventListener('keydown', (event) => {
+            if (!event.altKey || !event.shiftKey || event.repeat) return;
+
+            const key = event.key.toLowerCase();
+            if (key === 'd' || event.code === 'KeyD') {
+                event.preventDefault();
+                toggleUI();
+            }
+
+            if (key === 's' || event.code === 'KeyS') {
+                event.preventDefault();
+                executeBypass();
+            }
+        }, true);
+    }
+
     function createUI() {
         if (document.getElementById(CONFIG.PANEL_ID)) return;
 
         const panel = document.createElement('div');
         panel.id = CONFIG.PANEL_ID;
+        panel.dataset.visible = 'true';
         Object.assign(panel.style, {
             position: 'fixed', bottom: '30px', right: '30px', zIndex: '999999',
             width: '160px', padding: '15px',
@@ -194,7 +257,9 @@
             boxShadow: '8px 8px 0px #000',
             fontFamily: '"Plus Jakarta Sans", sans-serif', textAlign: 'center',
             transition: '0.3s ease',
-            display: 'block' 
+            display: 'block',
+            opacity: '1',
+            pointerEvents: 'auto'
         });
 
         const closeBtn = document.createElement('div');
@@ -205,11 +270,7 @@
             cursor: 'pointer', opacity: '0.4'
         });
         
-        closeBtn.onclick = () => {
-            panel.style.opacity = '0';
-            panel.style.transform = 'translateY(20px)';
-            setTimeout(() => { panel.style.display = 'none'; }, 300);
-        };
+        closeBtn.onclick = () => setPanelVisible(false);
         panel.appendChild(closeBtn);
 
         const brand = document.createElement('div');
@@ -251,14 +312,13 @@
             if (trigger) {
                 const panel = document.getElementById(CONFIG.PANEL_ID);
                 if (panel && panel.style.display === 'none') {
-                    panel.style.display = 'block';
-                    panel.style.transform = 'translateY(0)';
-                    setTimeout(() => { panel.style.opacity = '1'; }, 10);
+                    setPanelVisible(true);
                 }
             }
         });
     }
 
+    setupShortcuts();
     setTimeout(() => {
         createUI();
         initTriggerListener();
